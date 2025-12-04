@@ -1,302 +1,293 @@
-⭐ 1. Star Schema – Visão Geral
+# 📊 Desafio Power BI - Modelagem Star Schema
 
-Como o foco é o Professor, a tabela fato deve conter os registros de eventos relacionados à atuação do professor, como:
+## 🎯 Objetivo do Projeto
 
-Professor X ministrou disciplina Y
+Este projeto foi desenvolvido como parte do bootcamp de Power BI, com o objetivo de criar um modelo dimensional baseado em **Star Schema** a partir da base de dados **Financial Sample** do Power BI.
 
-No curso Z
+O desafio consistiu em transformar uma tabela única em um modelo dimensional completo, aplicando conceitos de modelagem de dados, transformações no Power Query e funções DAX.
 
-No departamento W
+---
 
-Na data de oferta do curso/disciplina
+## 📁 Estrutura do Projeto
 
-Com alguma métrica (ex.: quantidade de turmas, horas, carga horária ministrada etc.)
+```
+📦 Desafio-PowerBI-StarSchema
+ ┣ 📜 Desafio_PowerBI_StarSchema.pbix
+ ┣ 📷 star_schema.png
+ ┗ 📄 README.md
+```
 
-A partir disso, extraímos todas as informações descritivas para tabelas dimensão.
+---
 
-⭐ 2. Tabela Fato – FatoProfessor
+## 🌟 Modelo Star Schema
 
-A tabela FatoProfessor deve conter:
+O modelo criado segue a arquitetura **Star Schema** (esquema estrela), com uma tabela fato central conectada a múltiplas tabelas dimensão:
 
-Chaves Estrangeiras
+![Star Schema](star_schema.png)
 
-ID_Professor
+### Estrutura das Tabelas:
 
-ID_Curso
+**Tabela Fato:**
+- `F_Vendas` - Tabela central contendo as métricas e chaves estrangeiras
 
-ID_Departamento
+**Tabelas Dimensão:**
+- `D_Calendário` - Dimensão temporal criada com DAX
+- `D_Produtos` - Dimensão de produtos com métricas agregadas
+- `D_Produtos_Detalhes` - Detalhes complementares dos produtos
+- `D_Descontos` - Informações sobre descontos aplicados
 
-ID_Disciplina
+**Tabela de Backup:**
+- `Financials_origem` - Cópia da tabela original (oculta)
 
-ID_DataOferta (da sua tabela de datas)
+---
 
-Possíveis Métricas
+## 🛠️ Processo de Construção
 
-Qtd_Turmas_Ministradas
+### 1️⃣ Preparação Inicial
 
-CargaHoraria_Ministrada
+**Criação da tabela de backup:**
+- Duplicação da tabela `Financial Sample`
+- Renomeação para `Financials_origem`
+- Ocultação da tabela no modelo para uso como backup
 
-Qtd_Alunos (opcional – você não precisa usar)
+### 2️⃣ Criação das Tabelas Dimensão
 
-Quantidade de Ofertas
+#### 📅 D_Calendário (Dimensão Temporal)
 
-Indicador de Atividade (0/1)
+**Método:** Criada com DAX usando a função `CALENDAR()`
 
-Exemplo de Estrutura
-Nome do Campo	Tipo	Observação
-ID_Professor	FK	DimProfessor
-ID_Curso	FK	DimCurso
-ID_Departamento	FK	DimDepartamento
-ID_Disciplina	FK	DimDisciplina
-ID_DataOferta	FK	DimData
-Qtd_Turmas_Ministradas	Métrica	Fato
-CargaHoraria_Ministrada	Métrica	Fato
-⭐ 3. Tabelas Dimensão
+**Código DAX utilizado:**
+```dax
+D_Calendário = 
+ADDCOLUMNS(
+    CALENDAR(
+        DATE(2013, 1, 1),
+        DATE(2014, 12, 31)
+    ),
+    "Ano", YEAR([Date]),
+    "Mês", MONTH([Date]),
+    "Mês Nome", FORMAT([Date], "MMMM"),
+    "Trimestre", "Q" & QUARTER([Date]),
+    "Dia", DAY([Date]),
+    "Dia da Semana", WEEKDAY([Date]),
+    "Nome Dia Semana", FORMAT([Date], "dddd"),
+    "Ano-Mês", FORMAT([Date], "YYYY-MM")
+)
+```
 
-A seguir, o conjunto recomendado.
+**Colunas criadas:**
+- Date (coluna base)
+- Ano
+- Mês
+- Mês Nome
+- Trimestre
+- Dia
+- Dia da Semana
+- Nome Dia Semana
+- Ano-Mês
 
-📘 DimProfessor
+**Configuração:** Marcada como "Tabela de Datas" para habilitar funções de inteligência de tempo.
 
-Detalhes completos sobre o professor.
+---
 
-Campo	Exemplo
-ID_Professor	PK
-Nome	João da Silva
-Titulação	Mestre, Doutor
-Tempo_de_Casa	12 anos
-Regime	Integral, Parcial
-Email	...
-Data_Admissao	(opcional se quiser ligar à DimData)
-📗 DimCurso
-Campo	Exemplo
-ID_Curso	PK
-Nome_Curso	Ciência da Computação
-Tipo_Curso	Graduação / Pós
-Modalidade	Presencial / EAD
-CargaHoraria_Total	3600 horas
-📙 DimDepartamento
-Campo	Exemplo
-ID_Departamento	PK
-Nome_Departamento	Tecnologia
-Centro	Ex.: Centro de Exatas
-📕 DimDisciplina
-Campo	Exemplo
-ID_Disciplina	PK
-Nome_Disciplina	Banco de Dados
-CargaHoraria_Disciplina	80h
-Semestre_Padrão	1º, 2º, etc.
-⭐ 4. Dimensão de Data – DimData
+#### 📦 D_Produtos (Dimensão de Produtos Agregada)
 
-Como o enunciado pede explicitamente, crie uma dimensão de datas.
+**Método:** Power Query - Agrupamento de dados
 
-Use granularidade diária, que é o padrão para modelos BI.
+**Processo:**
+1. Criação de referência da tabela `Financial Sample`
+2. Agrupamento por `Product` com as seguintes agregações:
+   - **Média de Unidades Vendidas** (AVERAGE de Units Sold)
+   - **Média do valor de vendas** (AVERAGE de Sales)
+   - **Mediana do valor de vendas** (MEDIAN de Sales)
+   - **Valor máximo de Venda** (MAX de Sales)
+   - **Valor mínimo de Venda** (MIN de Sales)
+3. Adição de coluna de índice para criar `ID_produto`
+4. Reorganização das colunas
+
+**Colunas finais:**
+- ID_produto
+- Produto
+- Média de Unidades Vendidas
+- Média do valor de vendas
+- Mediana do valor de vendas
+- Valor máximo de Venda
+- Valor mínimo de Venda
+
+---
+
+#### 🔍 D_Produtos_Detalhes (Detalhes dos Produtos)
+
+**Método:** Power Query - Seleção de colunas
+
+**Processo:**
+1. Criação de referência da tabela `Financial Sample`
+2. Seleção das colunas específicas
+3. Manutenção dos registros detalhados (sem agrupamento)
+
+**Colunas:**
+- Product (ID_produtos)
+- Discount Band
+- Sale Price
+- Units Sold
+- Manufacturing Price
+- Índice
+
+---
+
+#### 💰 D_Descontos (Dimensão de Descontos)
+
+**Método:** Power Query - Seleção e remoção de duplicatas
+
+**Processo:**
+1. Criação de referência da tabela `Financial Sample`
+2. Seleção das colunas relacionadas a descontos
+3. Remoção de linhas duplicadas
+4. Renomeação de `Product` para `ID_produto`
+
+**Colunas:**
+- ID_produto
+- Discount
+- Discount Band
+- Índice
+
+---
+
+### 3️⃣ Criação da Tabela Fato
+
+#### 💼 F_Vendas (Tabela Fato Central)
+
+**Método:** Power Query - Seleção de colunas + Chave primária
+
+**Processo:**
+1. Criação de referência da tabela `Financial Sample`
+2. Seleção das colunas de métricas e chaves estrangeiras
+3. Adição de coluna de índice `SK_ID` (chave primária única)
+4. Reorganização das colunas
 
-Campos sugeridos:
+**Colunas:**
+- SK_ID (chave primária)
+- ID_Produto (chave estrangeira)
+- Product
+- Units Sold
+- Sales Price
+- Discount Band
+- Segment
+- Country
+- Profit
+- Date (chave estrangeira)
 
-ID_Data (PK)
+---
 
-Data
+### 4️⃣ Criação dos Relacionamentos
 
-Ano
+**Relacionamentos criados (Star Schema):**
 
-Mês
+| Tabela Origem | Coluna Origem | Tabela Destino | Coluna Destino | Cardinalidade |
+|---------------|---------------|----------------|----------------|---------------|
+| F_Vendas | Date | D_Calendário | Date | N:1 |
+| F_Vendas | ID_Produto | D_Produtos | ID_produto | N:1 |
+| F_Vendas | ID_Produto | D_Produtos_Detalhes | Product | N:1 |
+| F_Vendas | ID_Produto | D_Descontos | ID_produto | N:1 |
 
-Número_Mês
+**Configurações:**
+- Direção do filtro: Única (das dimensões para o fato)
+- Todos os relacionamentos ativos
+- Cardinalidade: Muitos para Um (N:1)
 
-Dia
+---
 
-Trimestre
+## 📚 Funções e Técnicas Utilizadas
 
-Ano-Mês (YYYY-MM)
+### Funções DAX:
 
-Nome_Mês
+| Função | Utilização |
+|--------|------------|
+| `CALENDAR()` | Criação da tabela calendário com intervalo de datas |
+| `ADDCOLUMNS()` | Adição de colunas calculadas à tabela calendário |
+| `YEAR()`, `MONTH()`, `DAY()` | Extração de componentes de data |
+| `QUARTER()` | Extração do trimestre |
+| `FORMAT()` | Formatação de datas como texto |
+| `WEEKDAY()` | Identificação do dia da semana |
+| `DATE()` | Criação de valores de data |
 
-ÉFimDeSemana? (Y/N)
+### Transformações Power Query:
 
-AnoAcadêmico (opcional, muito útil)
+| Técnica | Aplicação |
+|---------|-----------|
+| Referência de tabela | Criação de novas tabelas baseadas na original |
+| Duplicação de tabela | Backup da tabela original |
+| Agrupar Por (Group By) | Agregação de dados em D_Produtos |
+| Remover Duplicatas | Limpeza de dados em dimensões |
+| Adicionar Coluna de Índice | Criação de chaves primárias (SK_ID, ID_produto) |
+| Selecionar/Remover Colunas | Definição da estrutura de cada tabela |
+| Renomear Colunas | Padronização de nomenclatura |
 
-SemestreAcadêmico (1 ou 2)
+---
 
-Essa dimensão será usada como referência para:
+## ✅ Resultados Obtidos
 
-Data de oferta da disciplina
+- ✔️ Modelo dimensional Star Schema funcional
+- ✔️ 1 Tabela Fato central com métricas de vendas
+- ✔️ 4 Tabelas Dimensão para análises multidimensionais
+- ✔️ Relacionamentos N:1 corretamente configurados
+- ✔️ Tabela calendário otimizada para inteligência de tempo
+- ✔️ Backup da tabela original preservado
+- ✔️ Modelo pronto para criação de dashboards e relatórios
 
-Data de oferta do curso
+---
 
-Data dos eventos (turmas ministradas, períodos etc.)
+## 🎓 Aprendizados
 
-⭐ 5. Diagrama Visual (Descrição do Star Schema)
-                 DimCurso
-                     |
-                     | (ID_Curso)
-                     |
-DimProfessor —— FatoProfessor —— DimDisciplina
-      |                 |                 |
-      |                 |                 |
-      |                 |                 |
-DimDepartamento      DimData
+Durante o desenvolvimento deste projeto, foram aplicados conceitos fundamentais de:
 
+- **Modelagem Dimensional**: Implementação do modelo Star Schema
+- **ETL com Power Query**: Transformação e preparação de dados
+- **DAX**: Criação de tabelas calculadas e colunas customizadas
+- **Relacionamentos**: Configuração de cardinalidade e direção de filtros
+- **Boas Práticas**: Organização de dados, nomenclatura e documentação
 
-FatoProfessor no centro, conectado a todas as dimensões.
+---
 
-⭐ 6. Justificativa do Modelo
+## 🚀 Como Utilizar
 
-Como o foco é Professor, a FatoProfessor contém os eventos relacionados à atuação dele.
+1. Baixe o arquivo `Desafio_PowerBI_StarSchema.pbix`
+2. Abra no Power BI Desktop
+3. Explore o modelo na visualização de **Modelo**
+4. Crie visualizações utilizando as tabelas dimensão e fato
+5. Aplique funções de inteligência de tempo usando a D_Calendário
 
-Cada dimensão traz atributos que não mudam a granularidade, somente enriquecem análises.
+---
 
-A dimensão de datas é obrigatória para análises como:
+## 👨‍💻 Autor
 
-Quantidade de disciplinas por período
+Projeto desenvolvido como parte do Bootcamp de Power BI
 
-Professores mais ativos por semestre
+📅 Data: Dezembro 2024
 
-Evolução da carga horária ao longo dos anos
+---
 
-Os relacionamentos ficam 1:N, sempre dimensão → fato
+## 📄 Licença
 
-🎉 Se quiser, posso montar também o modelo no estilo diagrama ERD com caixas e tabelas, ou posso montar tudo no Power BI (DAX para criar dimensão de data, por exemplo). Quer que eu gere isso graficamente?
-Você disse:
-vou enviar a referencia
-O ChatGPT disse:
+Este projeto foi desenvolvido para fins educacionais como parte de um bootcamp.
 
-Perfeito!
-Pode enviar a referência (diagrama, tabelas, imagem ou descrição). Assim eu monto o Star Schema exatamente baseado no seu modelo relacional.
+---
 
-Você disse:
-O ChatGPT disse:
+## 🔗 Links Úteis
 
-Perfeito, agora que visualizei o diagrama, vou montar para você o Star Schema completo, já convertido do modelo relacional exibido.
+- [Documentação Power BI](https://docs.microsoft.com/power-bi/)
+- [DAX Guide](https://dax.guide/)
+- [Power Query M Reference](https://docs.microsoft.com/powerquery-m/)
 
-⭐ STAR SCHEMA – FOCO NO PROFESSOR
+---
 
-Como solicitado, o foco da análise é o Professor.
-Portanto, criamos uma FatoProfessor que representa ofertas de disciplinas ministradas por professores.
+**⭐ Se este projeto foi útil para você, considere dar uma estrela no repositório!**
 
-No diagrama relacional, as tabelas relevantes para o foco são:
 
-Professor
 
-Departamento
 
-Disciplina
 
-Curso
 
-Disciplina & Curso (tabela associativa: qual disciplina pertence a qual curso)
 
-As tabelas Aluno, Matriculado e pré-requisitos não entram no star schema porque o enunciado pediu para ignorar dados dos alunos.
 
-⭐ 1. TABELA FATO – FatoProfessor
 
-Granularidade recomendada:
-➡️ Uma linha por professor ministrando uma disciplina em um curso, na data da oferta.
-
-FatoProfessor
-
-Campo	Descrição
-ID_Professor	FK para DimProfessor
-ID_Disciplina	FK para DimDisciplina
-ID_Curso	FK para DimCurso
-ID_Departamento	FK para DimDepartamento
-ID_DataOferta	FK para DimData
-Qtd_Ofertas	Métrica (1 por linha)
-CargaHoraria_Ministrada	Opcional
-Qtde_Turmas	Opcional
-⭐ 2. TABELAS DIMENSÃO
-📘 DimProfessor
-
-Origem: tabela Professor
-
-Campo	Observação
-ID_Professor (PK)	
-Nome	
-DepartamentoAtual	pode trazer diretamente (denormalização permitida em dimensões)
-📗 DimDepartamento
-
-Origem: tabela Departamento
-
-Campo
-ID_Departamento (PK)
-Nome
-Campus
-ID_Professor_Coordenador (opcional)
-📙 DimCurso
-
-Origem: tabela Curso
-
-Campo
-ID_Curso (PK)
-Nome_Curso
-ID_Departamento
-📕 DimDisciplina
-
-Origem: tabela Disciplina
-
-Campo
-ID_Disciplina (PK)
-Nome_Disciplina
-ProfessorResponsável
-
-Obs.: A tabela Disciplina & Curso serve apenas como relação. No star schema, você usa somente a disciplina e o curso como dimensões independentes, porque a junção já vem resolvida pela FatoProfessor.
-
-⭐ 3. Dimensão de Datas – DimData
-
-Você deve criá-la manualmente, já que o modelo não traz datas.
-
-Campos recomendados:
-
-Campo
-ID_Data (PK)
-Data
-Ano
-Mês
-Dia
-Trimestre
-Ano-Mês
-NomeDoMês
-SemestreAcadêmico
-
-Essa data vai representar:
-
-Data de oferta da disciplina
-
-Data de oferta do curso
-
-Data da atividade do professor
-
-⭐ 4. DIAGRAMA DE STAR SCHEMA (DESCRIÇÃO)
-                   DimCurso
-                       |
-                       | (ID_Curso)
-                       |
-   DimProfessor --- FatoProfessor --- DimDisciplina
-          |                |                 |
-          |                |                 |
-          |                |                 |
-                     DimDepartamento
-                           |
-                     DimData
-
-
-A FatoProfessor centraliza todas as análises, com as dimensões ao redor.
-
-⭐ 5. POR QUE ESSE MODELO FUNCIONA
-
-A granularidade ficou clara e consistente: professor ministrando disciplina em curso numa data.
-
-Todas as partes descritivas foram migradas para dimensões.
-
-A tabela associativa Disciplina & Curso foi absorvida logicamente pela fato.
-
-O modelo fica pronto para análises como:
-
-Quantidade de disciplinas ministradas por professor
-
-Distribuição por cursos
-
-Professores mais ativos por período
-
-Comparação por departamento
-
-Evolução temporal (usando DimData)
